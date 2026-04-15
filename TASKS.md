@@ -15,7 +15,7 @@ Keep the layout docs-like and simple.
 
 ---
 
-## Task 2: Implement the Python build pipeline
+## Task 2: Implement the Python build pipeline ✅ Completed
 Create `build.py` to:
 - read content from `content/`
 - convert Markdown note pages into static HTML pages
