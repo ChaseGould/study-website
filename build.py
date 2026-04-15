@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 import shutil
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).parent
 CONTENT_DIR = ROOT / "content"
@@ -19,7 +20,7 @@ class Page:
     title: str
     url: str
     output_path: Path
-    breadcrumbs: List[Tuple[str, str]]
+    breadcrumbs: List[Tuple[str, Optional[str]]]
     body_html: str
     kind: str
 
@@ -110,16 +111,14 @@ def markdown_to_html(markdown: str) -> str:
     return "\n".join(html_parts)
 
 
-def build_breadcrumbs(parts: List[str], url: str, title: str) -> List[Tuple[str, str]]:
-    crumbs: List[Tuple[str, str]] = [("Home", "index.html")]
+def build_breadcrumbs(parts: List[str], url: str, title: str) -> List[Tuple[str, Optional[str]]]:
+    crumbs: List[Tuple[str, Optional[str]]] = [("Home", "index.html")]
     if not parts:
         crumbs.append((title, url))
         return crumbs
 
-    current_parts: List[str] = []
     for part in parts:
-        current_parts.append(part)
-        crumbs.append((slug_to_title(part), "/".join(current_parts) + "/index.html"))
+        crumbs.append((slug_to_title(part), None))
 
     crumbs.append((title, url))
     return crumbs
@@ -207,56 +206,55 @@ def build_tree(pages: List[Page]) -> Dict[str, dict]:
     return root
 
 
-def render_nav(node: Dict[str, dict], depth: int = 0) -> str:
+def relative_href(from_url: str, to_url: str) -> str:
+    base_dir = posixpath.dirname(from_url) or "."
+    return posixpath.relpath(to_url, base_dir)
+
+
+def render_nav(node: Dict[str, dict], current_url: str) -> str:
     items: List[str] = []
+
+    for page in sorted(node["_pages"], key=lambda p: p.title.lower()):
+        href = relative_href(current_url, page.url)
+        items.append(f'<li><a href="{escape(href)}">{escape(page.title)}</a></li>')
 
     for section, child in sorted(node["_children"].items()):
         label = slug_to_title(section)
-        subsection = render_nav(child, depth + 1)
-        pages_html = "".join(
-            f'<li><a href="{escape(page.url)}">{escape(page.title)}</a></li>' for page in sorted(child["_pages"], key=lambda p: p.title.lower())
-        )
-        combined = ""
-        if pages_html:
-            combined += f"<ul>{pages_html}</ul>"
-        if subsection:
-            combined += subsection
-        items.append(f"<li><span>{escape(label)}</span>{combined}</li>")
+        subsection = render_nav(child, current_url)
+        items.append(f"<li><span>{escape(label)}</span>{subsection}</li>")
 
-    root_pages = "".join(
-        f'<li><a href="{escape(page.url)}">{escape(page.title)}</a></li>' for page in sorted(node["_pages"], key=lambda p: p.title.lower())
-    )
-
-    html = ""
-    if root_pages:
-        html += f"<ul>{root_pages}</ul>"
-    if items:
-        html += f"<ul>{''.join(items)}</ul>"
-    return html
+    if not items:
+        return ""
+    return f"<ul>{''.join(items)}</ul>"
 
 
-def render_breadcrumbs(crumbs: List[Tuple[str, str]]) -> str:
+def render_breadcrumbs(crumbs: List[Tuple[str, Optional[str]]], current_url: str) -> str:
     out: List[str] = []
     for i, (label, href) in enumerate(crumbs):
         if i == len(crumbs) - 1:
             out.append(f'<span aria-current="page">{escape(label)}</span>')
+        elif href:
+            relative = relative_href(current_url, href)
+            out.append(f'<a href="{escape(relative)}">{escape(label)}</a><span>/</span>')
         else:
-            out.append(f'<a href="/{escape(href)}">{escape(label)}</a><span>/</span>')
+            out.append(f"<span>{escape(label)}</span><span>/</span>")
     return "".join(out)
 
 
-def page_shell(title: str, nav_html: str, breadcrumbs_html: str, body_html: str) -> str:
+def page_shell(title: str, current_url: str, nav_html: str, breadcrumbs_html: str, body_html: str) -> str:
+    stylesheet_href = relative_href(current_url, "assets/site.css")
+    home_href = relative_href(current_url, "index.html")
     return f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
   <meta charset=\"UTF-8\" />
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
   <title>{escape(title)} | Study Site</title>
-  <link rel=\"stylesheet\" href=\"/assets/site.css\" />
+  <link rel=\"stylesheet\" href=\"{escape(stylesheet_href)}\" />
 </head>
 <body>
   <header class=\"topbar\">
-    <div class=\"brand\"><a href=\"/index.html\">Study Site</a></div>
+    <div class=\"brand\"><a href=\"{escape(home_href)}\">Study Site</a></div>
   </header>
   <div class=\"layout\">
     <aside class=\"sidebar\" aria-label=\"Sidebar\">
@@ -278,7 +276,7 @@ def render_home(nav_html: str) -> str:
       <h1>Welcome to your study site</h1>
       <p>Build complete. Add note pages and artifact folders inside <code>content/</code>.</p>
     """
-    return page_shell("Home", nav_html, '<span aria-current="page">Home</span>', body)
+    return page_shell("Home", "index.html", nav_html, '<span aria-current="page">Home</span>', body)
 
 
 def copy_assets() -> None:
@@ -291,7 +289,6 @@ def copy_assets() -> None:
 def build() -> None:
     pages = collect_pages()
     nav_tree = build_tree(pages)
-    nav_html = render_nav(nav_tree)
 
     if DOCS_DIR.exists():
         shutil.rmtree(DOCS_DIR)
@@ -299,11 +296,14 @@ def build() -> None:
 
     copy_assets()
 
-    (DOCS_DIR / "index.html").write_text(render_home(nav_html), encoding="utf-8")
+    home_nav_html = render_nav(nav_tree, "index.html")
+    (DOCS_DIR / "index.html").write_text(render_home(home_nav_html), encoding="utf-8")
 
     for page in pages:
         page.output_path.parent.mkdir(parents=True, exist_ok=True)
-        html = page_shell(page.title, nav_html, render_breadcrumbs(page.breadcrumbs), page.body_html)
+        nav_html = render_nav(nav_tree, page.url)
+        breadcrumbs_html = render_breadcrumbs(page.breadcrumbs, page.url)
+        html = page_shell(page.title, page.url, nav_html, breadcrumbs_html, page.body_html)
         page.output_path.write_text(html, encoding="utf-8")
 
     print(f"Built {len(pages)} content pages into {DOCS_DIR}")
