@@ -51,6 +51,9 @@ def parse_frontmatter(text: str) -> Tuple[Dict[str, str], str]:
     return metadata, content
 
 
+ARTIFACT_SHORTCODE_RE = re.compile(r'^\{\{\s*artifact\s+"([^"]+)"\s*\}\}$')
+
+
 def render_inline_markdown(text: str) -> str:
     parts: List[str] = []
     last_index = 0
@@ -99,6 +102,22 @@ def markdown_to_html(markdown: str) -> str:
 
         if not stripped:
             close_list()
+            continue
+
+        artifact_match = ARTIFACT_SHORTCODE_RE.match(stripped)
+        if artifact_match:
+            close_list()
+            artifact_src = escape(artifact_match.group(1).strip(), quote=True)
+            title = escape(Path(artifact_match.group(1).strip()).stem.replace("_", " ").replace("-", " ").title())
+            html_parts.append(
+                "\n".join(
+                    [
+                        '<div class="artifact-embed">',
+                        f'  <iframe src="{artifact_src}" title="{title}" loading="lazy" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>',
+                        "</div>",
+                    ]
+                )
+            )
             continue
 
         heading_match = re.match(r"^(#{1,6})\s+(.+)$", stripped)

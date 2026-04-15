@@ -27,25 +27,50 @@ Two page types:
 1. **Note page**
    - Markdown file with frontmatter
    - Used for study notes and explanations
+   - May include relative image links such as `![Alt text](images/example.png)`
+   - May embed a Claude artifact with:
+     - `{{ artifact "artifact-folder/artifact-file.html" }}`
 
 2. **Artifact page**
-   - Folder containing:
-     - `meta.json`
-     - optional `description.md`
-     - `index.html`
-     - `style.css`
-     - `script.js`
+   - A self-contained HTML file stored in a folder next to the note that references it
    - Used for Claude-generated interactive content
+   - Embedded inside note pages as a sandboxed iframe
 
 ## Authoring workflow
 Content is created manually in VS Code.
 
 - Create/edit Markdown files for notes
-- Add artifact folders manually
+- Add images in a folder next to the note, then reference them with a relative Markdown image path
+- Add Claude artifacts in a folder next to the note, keeping the downloaded `.html` file intact
+- Embed an artifact in a note with:
+  - `{{ artifact "artifact-folder/artifact-file.html" }}`
 - Run the Python build script locally
 - Push the generated site to GitHub
 
 There is no in-browser editor.
+
+### Example content layout
+```text
+content/
+  computer-networking/
+    udp/
+      udp-broadcast.md
+      images/
+        udp-header.png
+      udp-broadcast-artifact/
+        udp_broadcast_subnet_explainer.html
+```
+
+### Example note content
+```md
+# UDP Broadcast
+
+![UDP header](images/udp-header.png)
+
+Here is the interactive artifact:
+
+{{ artifact "udp-broadcast-artifact/udp_broadcast_subnet_explainer.html" }}
+```
 
 ## GitHub Pages architecture
 This site should be built as a **static site**.
@@ -76,12 +101,12 @@ docs/
 - build sidebar and breadcrumbs
 - generate static pages
 - copy assets
-- copy artifact files
+- copy note-adjacent images and artifact files
 - generate simple search data
 
 ## Rendering rules
 - Note pages render as normal site pages
-- Artifact pages render inside a sandboxed iframe
+- Artifact embeds render inside a sandboxed iframe
 - Artifacts stay isolated from the main site layout
 
 ## Goal

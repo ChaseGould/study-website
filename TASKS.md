@@ -27,39 +27,14 @@ Create `build.py` to:
 
 Assume GitHub Pages will publish from `main` → `/docs`.
 
----
-
-## Task 3: Support both page types
-Implement support for:
-- **note pages** from Markdown
-- **artifact pages** from artifact folders
-
-Requirements:
-- note pages render in the normal site layout
-- artifact pages render in the normal site layout with the artifact shown in a sandboxed iframe
-- support optional `description.md` above the artifact
 
 ---
 
-## Task 4: Add simple search and sample content
+## Task 3: Add simple search and sample content
 Add a simple client-side search using generated static data.
 
 Search should cover:
-- page titles
+- Page titles
 - Markdown note content
-- artifact titles
-- artifact descriptions
-
-Also add a small sample content set for:
-- Spanish
-- ROS2
-- C++
 
 ---
-
-## Task 5: Final cleanup
-Finish by:
-- keeping the code structure clean
-- making local build/run steps obvious
-- confirming the site works as a static GitHub Pages site
-- updating the README if needed

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UDP Broadcast — Subnet Explainer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1b2e;
+    --bg2: #0a1525;
+    --line: #1e3a5f;
+    --mid: #2a5298;
+    --bright: #4a90d9;
+    --accent: #63b3f5;
+    --text: #a8d4f5;
+    --dim: #4a7aaa;
+    --dim2: #2a5298;
+    --red: #e05555;
+    --green: #4ecb8d;
+    --amber: #f0a830;
+    --white: #d0e8ff;
+    --mono: 'Courier New', monospace;
+    --sans: system-ui, sans-serif;
+  }
+
+  body {
+    background: #060f1c;
+    font-family: var(--mono);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
+    display: flex;
+    justify-content: center;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 820px;
+  }
+
+  .page-header {
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .page-title {
+    font-size: 13px;
+    letter-spacing: .12em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .page-sub {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: .06em;
+  }
+
+  #bp-root {
+    background: var(--bg);
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    font-family: var(--mono);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .bp-header {
+    display: flex; align-items: center; gap: 0;
+    border-bottom: 1px solid var(--line);
+    background: #0a1525;
+  }
+  .bp-tab {
+    padding: 10px 18px;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--dim); cursor: pointer; border: none; background: transparent;
+    border-right: 1px solid var(--line);
+    transition: color .15s, background .15s;
+    font-family: var(--mono);
+  }
+  .bp-tab:hover { color: var(--accent); background: rgba(74,144,217,.07); }
+  .bp-tab.active { color: var(--accent); background: rgba(74,144,217,.12); border-bottom: 2px solid var(--accent); }
+
+  .bp-panel { display: none; padding: 20px; }
+  .bp-panel.active { display: block; }
+
+  .bp-rule {
+    font-size: 11px; color: var(--dim); letter-spacing: .05em;
+    border: 1px solid var(--line); border-left: 3px solid var(--mid);
+    padding: 8px 12px; border-radius: 0 6px 6px 0;
+    margin-bottom: 16px; line-height: 1.6;
+    background: rgba(42,82,152,.08);
+  }
+  .bp-rule em { color: var(--accent); font-style: normal; }
+
+  .bp-grid-bg {
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-color: var(--bg);
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    margin-bottom: 14px;
+  }
+
+  .bp-controls {
+    display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+  }
+  .bp-select {
+    padding: 6px 10px;
+    background: #0a1525; border: 1px solid var(--mid);
+    color: var(--accent); font-family: var(--mono); font-size: 11px;
+    border-radius: 4px; cursor: pointer;
+    letter-spacing: .03em;
+  }
+  .bp-btn {
+    padding: 6px 14px;
+    background: transparent; border: 1px solid var(--mid);
+    color: var(--accent); font-family: var(--mono); font-size: 11px;
+    border-radius: 4px; cursor: pointer; letter-spacing: .05em; text-transform: uppercase;
+    transition: all .15s;
+  }
+  .bp-btn:hover { background: rgba(74,144,217,.15); border-color: var(--accent); }
+  .bp-btn:active { transform: scale(.97); }
+  .bp-btn:disabled { opacity: .35; pointer-events: none; }
+  .bp-btn.primary { border-color: var(--accent); color: var(--white); }
+
+  .bp-log {
+    background: #060e1a; border: 1px solid var(--line);
+    border-radius: 4px; padding: 10px 12px; font-size: 11px;
+    min-height: 72px; line-height: 1.8; letter-spacing: .02em;
+    font-family: var(--mono);
+  }
+  .bp-log .ok  { color: var(--green); }
+  .bp-log .err { color: var(--red); }
+  .bp-log .inf { color: var(--accent); }
+  .bp-log .dim { color: var(--dim); }
+
+  .bp-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .bp-table th { text-align: left; color: var(--dim); padding: 6px 10px; border-bottom: 1px solid var(--line); letter-spacing: .08em; text-transform: uppercase; font-weight: 400; }
+  .bp-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--text); font-family: var(--mono); vertical-align: top; }
+  .bp-table tr:last-child td { border-bottom: none; }
+  .bp-table td:first-child { color: var(--white); font-weight: 500; }
+  .bp-tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; letter-spacing: .05em; font-family: var(--mono); }
+  .tag-red   { background: rgba(224,85,85,.15); color: var(--red); border: 1px solid rgba(224,85,85,.3); }
+  .tag-amber { background: rgba(240,168,48,.12); color: var(--amber); border: 1px solid rgba(240,168,48,.3); }
+  .tag-green { background: rgba(78,203,141,.1); color: var(--green); border: 1px solid rgba(78,203,141,.25); }
+
+  .quiz-q { font-size: 13px; color: var(--white); line-height: 1.6; margin-bottom: 14px; font-family: var(--sans); }
+  .quiz-n  { font-size: 10px; color: var(--dim); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+  .quiz-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .quiz-opt {
+    padding: 9px 14px; border-radius: 4px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.02);
+    color: var(--text); font-size: 12px; cursor: pointer; text-align: left;
+    transition: all .12s; font-family: var(--sans); line-height: 1.4;
+  }
+  .quiz-opt:hover { border-color: var(--mid); color: var(--accent); background: rgba(74,144,217,.07); }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(78,203,141,.1); color: var(--green); }
+  .quiz-opt.wrong   { border-color: var(--red);   background: rgba(224,85,85,.1);   color: var(--red); }
+  .quiz-fb {
+    font-size: 12px; padding: 10px 12px; border-radius: 4px; line-height: 1.5; margin-top: 4px;
+    font-family: var(--sans); display: none;
+  }
+  .quiz-fb.ok  { background: rgba(78,203,141,.08); border: 1px solid rgba(78,203,141,.25); color: var(--green); }
+  .quiz-fb.err { background: rgba(224,85,85,.08);  border: 1px solid rgba(224,85,85,.25);  color: #f08080; }
+  .quiz-fb strong { color: var(--white); }
+  .quiz-fb code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); }
+
+  @keyframes march { to { stroke-dashoffset: -20; } }
+  @keyframes pop { 0% { r:8; opacity:1; } 100% { r:28; opacity:0; } }
+  .marching { stroke-dasharray: 6 4; animation: march .55s linear infinite; }
+  .pop-ring { animation: pop .7s ease-out forwards; }
+
+  .footer {
+    margin-top: 16px;
+    font-size: 10px;
+    color: var(--dim2);
+    letter-spacing: .05em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="page-header">
+    <span class="page-title">UDP Broadcast — Subnet routing explainer</span>
+    <span class="page-sub">Interactive networking lesson</span>
+  </div>
+
+  <div id="bp-root">
+    <div class="bp-header">
+      <button class="bp-tab active" onclick="bpTab('overview',this)">Overview</button>
+      <button class="bp-tab" onclick="bpTab('simulate',this)">Simulation</button>
+      <button class="bp-tab" onclick="bpTab('addresses',this)">Addresses</button>
+      <button class="bp-tab" onclick="bpTab('quiz',this)">Quiz</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="bp-panel active" id="bp-overview">
+      <div class="bp-rule"><em>Rule:</em> UDP broadcast packets never cross a router. The subnet boundary is absolute — by design, by RFC, and by bitter experience with Smurf attacks.</div>
+      <div class="bp-grid-bg">
+        <svg width="100%" viewBox="0 0 680 310" id="ov-svg" style="display:block;">
+          <defs>
+            <marker id="ov-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+          <rect x="14" y="14" width="255" height="282" rx="6" fill="rgba(42,82,152,.12)" stroke="#2a5298" stroke-width="1" stroke-dasharray="5 3"/>
+          <text x="24" y="32" font-size="10" font-family="monospace" fill="#4a7aaa" letter-spacing=".06em">SUBNET A</text>
+          <text x="24" y="44" font-size="9" font-family="monospace" fill="#2a5298">192.168.1.0/24</text>
+          <rect x="28" y="56" width="82" height="40" rx="4" fill="rgba(74,144,217,.1)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="69" y="72" text-anchor="middle" font-size="11" font-weight="500" font-family="monospace" fill="#a8d4f5">HOST A1</text>
+          <text x="69" y="86" text-anchor="middle" font-size="9" font-family="monospace" fill="#4a7aaa">.1.10</text>
+          <rect x="28" y="112" width="82" height="40" rx="4" fill="rgba(74,144,217,.1)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="69" y="128" text-anchor="middle" font-size="11" font-weight="500" font-family="monospace" fill="#a8d4f5">HOST A2</text>
+          <text x="69" y="142" text-anchor="middle" font-size="9" font-family="monospace" fill="#4a7aaa">.1.20</text>
+          <rect x="28" y="168" width="82" height="40" rx="4" fill="rgba(74,144,217,.1)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="69" y="184" text-anchor="middle" font-size="11" font-weight="500" font-family="monospace" fill="#a8d4f5">HOST A3</text>
+          <text x="69" y="198" text-anchor="middle" font-size="9" font-family="monospace" fill="#4a7aaa">.1.30</text>
+          <rect x="150" y="100" width="100" height="60" rx="4" fill="rgba(30,58,95,.6)" stroke="#2a5298" stroke-width="1"/>
+          <text x="200" y="126" text-anchor="middle" font-size="10" font-family="monospace" fill="#4a90d9" letter-spacing=".05em">SWITCH</text>
+          <text x="200" y="140" text-anchor="middle" font-size="9" font-family="monospace" fill="#2a5298">layer 2</text>
+          <line x1="110" y1="76" x2="150" y2="120" stroke="#2a5298" stroke-width="0.5"/>
+          <line x1="110" y1="132" x2="150" y2="132" stroke="#2a5298" stroke-width="0.5"/>
+          <line x1="110" y1="188" x2="150" y2="148" stroke="#2a5298" stroke-width="0.5"/>
+          <rect x="290" y="110" width="100" height="90" rx="4" fill="rgba(30,58,95,.6)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="340" y="148" text-anchor="middle" font-size="11" font-family="monospace" fill="#63b3f5" letter-spacing=".04em">ROUTER</text>
+          <text x="340" y="162" text-anchor="middle" font-size="9" font-family="monospace" fill="#4a7aaa">layer 3</text>
+          <text x="340" y="193" text-anchor="middle" font-size="9" font-family="monospace" fill="#e05555">drops bcast</text>
+          <line x1="250" y1="130" x2="290" y2="140" stroke="#2a5298" stroke-width="0.5"/>
+          <g id="ov-block" opacity="0" style="transition:opacity .2s;">
+            <line x1="280" y1="100" x2="400" y2="210" stroke="#e05555" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="400" y1="100" x2="280" y2="210" stroke="#e05555" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="280" y="100" width="120" height="112" rx="4" fill="none" stroke="#e05555" stroke-width="1.5"/>
+          </g>
+          <rect x="411" y="14" width="255" height="282" rx="6" fill="rgba(42,152,82,.08)" stroke="#1e5f3a" stroke-width="1" stroke-dasharray="5 3"/>
+          <text x="421" y="32" font-size="10" font-family="monospace" fill="#2a7a4a" letter-spacing=".06em">SUBNET B</text>
+          <text x="421" y="44" font-size="9" font-family="monospace" fill="#1e5f3a">192.168.2.0/24</text>
+          <rect x="430" y="56" width="82" height="40" rx="4" fill="rgba(30,95,58,.1)" stroke="#1e5f3a" stroke-width="1"/>
+          <text x="471" y="72" text-anchor="middle" font-size="11" font-weight="500" font-family="monospace" fill="#2a7a4a">HOST B1</text>
+          <text x="471" y="86" text-anchor="middle" font-size="9" font-family="monospace" fill="#1e5f3a">.2.10</text>
+          <rect x="430" y="112" width="82" height="40" rx="4" fill="rgba(30,95,58,.1)" stroke="#1e5f3a" stroke-width="1"/>
+          <text x="471" y="128" text-anchor="middle" font-size="11" font-weight="500" font-family="monospace" fill="#2a7a4a">HOST B2</text>
+          <text x="471" y="142" text-anchor="middle" font-size="9" font-family="monospace" fill="#1e5f3a">.2.20</text>
+          <rect x="540" y="100" width="100" height="60" rx="4" fill="rgba(30,58,95,.4)" stroke="#1e5f3a" stroke-width="1"/>
+          <text x="590" y="126" text-anchor="middle" font-size="10" font-family="monospace" fill="#2a7a4a" letter-spacing=".05em">SWITCH</text>
+          <text x="590" y="140" text-anchor="middle" font-size="9" font-family="monospace" fill="#1e5f3a">layer 2</text>
+          <line x1="512" y1="76" x2="540" y2="120" stroke="#1e5f3a" stroke-width="0.5"/>
+          <line x1="512" y1="132" x2="540" y2="132" stroke="#1e5f3a" stroke-width="0.5"/>
+          <line x1="390" y1="145" x2="540" y2="130" stroke="#1e5f3a" stroke-width="0.5" stroke-dasharray="3 3" opacity=".4"/>
+          <g id="ov-pkt" opacity="0" style="transition:opacity .2s;">
+            <line x1="110" y1="132" x2="150" y2="132" stroke="#63b3f5" stroke-width="2" stroke-dasharray="6 4" class="marching" marker-end="url(#ov-arr)"/>
+            <line x1="250" y1="130" x2="290" y2="140" stroke="#63b3f5" stroke-width="2" stroke-dasharray="6 4" class="marching" marker-end="url(#ov-arr)"/>
+          </g>
+          <text x="28" y="250" font-size="9" font-family="monospace" fill="#2a5298">DST:</text>
+          <text x="52" y="250" font-size="9" font-family="monospace" fill="#4a90d9">255.255.255.255</text>
+          <text x="28" y="264" font-size="9" font-family="monospace" fill="#2a5298">PORT: 67 (DHCP)</text>
+          <text x="28" y="278" font-size="9" font-family="monospace" fill="#2a5298">PROTO: UDP</text>
+        </svg>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="bp-btn primary" onclick="ovAnim()">Animate broadcast</button>
+      </div>
+    </div>
+
+    <!-- SIMULATION -->
+    <div class="bp-panel" id="bp-simulate">
+      <div class="bp-rule"><em>Experiment:</em> select a source, a destination, then transmit. The path traces through the topology in real time.</div>
+      <div class="bp-controls">
+        <select class="bp-select" id="sim-src">
+          <option value="A1">SRC: Host A1 (192.168.1.10)</option>
+          <option value="A2">SRC: Host A2 (192.168.1.20)</option>
+          <option value="A3">SRC: Host A3 (192.168.1.30)</option>
+          <option value="B1">SRC: Host B1 (192.168.2.10)</option>
+          <option value="B2">SRC: Host B2 (192.168.2.20)</option>
+        </select>
+        <span style="color:var(--dim);font-size:14px;">→</span>
+        <select class="bp-select" id="sim-dst">
+          <option value="A1">DST: Host A1</option>
+          <option value="A2">DST: Host A2</option>
+          <option value="A3" selected>DST: Host A3</option>
+          <option value="B1">DST: Host B1</option>
+          <option value="B2">DST: Host B2</option>
+          <option value="sbcast">DST: Subnet bcast (x.x.x.255)</option>
+          <option value="lbcast">DST: Limited bcast (255.255.255.255)</option>
+        </select>
+        <button class="bp-btn primary" id="sim-send" onclick="simRun()">TX packet</button>
+      </div>
+      <div class="bp-grid-bg">
+        <svg width="100%" viewBox="0 0 680 260" id="sim-svg" style="display:block;">
+          <defs>
+            <marker id="sim-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+          <rect x="10" y="10" width="265" height="240" rx="5" fill="rgba(42,82,152,.1)" stroke="#2a5298" stroke-width="0.5" stroke-dasharray="4 3"/>
+          <text x="20" y="26" font-size="9" font-family="monospace" fill="#2a5298" letter-spacing=".07em">SUBNET A — 192.168.1.0/24</text>
+          <rect id="s-A1" x="18" y="34" width="72" height="34" rx="3" fill="rgba(74,144,217,.1)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="54" y="48" text-anchor="middle" font-size="10" font-weight="500" font-family="monospace" fill="#a8d4f5">A1</text>
+          <text x="54" y="60" text-anchor="middle" font-size="8" font-family="monospace" fill="#4a7aaa">.1.10</text>
+          <rect id="s-A2" x="100" y="34" width="72" height="34" rx="3" fill="rgba(74,144,217,.1)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="136" y="48" text-anchor="middle" font-size="10" font-weight="500" font-family="monospace" fill="#a8d4f5">A2</text>
+          <text x="136" y="60" text-anchor="middle" font-size="8" font-family="monospace" fill="#4a7aaa">.1.20</text>
+          <rect id="s-A3" x="18" y="86" width="72" height="34" rx="3" fill="rgba(74,144,217,.1)" stroke="#4a90d9" stroke-width="1"/>
+          <text x="54" y="100" text-anchor="middle" font-size="10" font-weight="500" font-family="monospace" fill="#a8d4f5">A3</text>
+          <text x="54" y="112" text-anchor="middle" font-size="8" font-family="monospace" fill="#4a7aaa">.1.30</text>
+          <rect x="155" y="86" width="100" height="50" rx="3" fill="rgba(30,58,95,.7)" stroke="#2a5298" stroke-width="1"/>
+          <text x="205" y="107" text-anchor="middle" font-size="9" font-family="monospace" fill="#4a90d9" letter-spacing=".05em">SWITCH A</text>
+          <text x="205" y="120" text-anchor="middle" font-size="8" font-family="monospace" fill="#2a5298">L2 fwd</text>
+          <line x1="90" y1="51" x2="155" y2="100" stroke="#2a5298" stroke-width="0.5"/>
+          <line x1="172" y1="51" x2="192" y2="86" stroke="#2a5298" stroke-width="0.5"/>
+          <line x1="90" y1="103" x2="155" y2="108" stroke="#2a5298" stroke-width="0.5"/>
+          <rect x="290" y="95" width="100" height="70" rx="3" fill="rgba(30,58,95,.7)" stroke="#63b3f5" stroke-width="1"/>
+          <text x="340" y="126" text-anchor="middle" font-size="10" font-family="monospace" fill="#63b3f5" letter-spacing=".04em">ROUTER</text>
+          <text x="340" y="140" text-anchor="middle" font-size="8" font-family="monospace" fill="#4a7aaa">L3 gateway</text>
+          <text x="340" y="157" text-anchor="middle" font-size="8" font-family="monospace" fill="#e05555">bcast=drop</text>
+          <line x1="255" y1="111" x2="290" y2="118" stroke="#2a5298" stroke-width="0.5"/>
+          <rect x="405" y="10" width="265" height="240" rx="5" fill="rgba(30,95,58,.08)" stroke="#1e5f3a" stroke-width="0.5" stroke-dasharray="4 3"/>
+          <text x="415" y="26" font-size="9" font-family="monospace" fill="#1e5f3a" letter-spacing=".07em">SUBNET B — 192.168.2.0/24</text>
+          <rect id="s-B1" x="415" y="34" width="72" height="34" rx="3" fill="rgba(30,95,58,.1)" stroke="#1e5f3a" stroke-width="1"/>
+          <text x="451" y="48" text-anchor="middle" font-size="10" font-weight="500" font-family="monospace" fill="#4ecb8d">B1</text>
+          <text x="451" y="60" text-anchor="middle" font-size="8" font-family="monospace" fill="#1e5f3a">.2.10</text>
+          <rect id="s-B2" x="500" y="34" width="72" height="34" rx="3" fill="rgba(30,95,58,.1)" stroke="#1e5f3a" stroke-width="1"/>
+          <text x="536" y="48" text-anchor="middle" font-size="10" font-weight="500" font-family="monospace" fill="#4ecb8d">B2</text>
+          <text x="536" y="60" text-anchor="middle" font-size="8" font-family="monospace" fill="#1e5f3a">.2.20</text>
+          <rect x="575" y="86" width="80" height="50" rx="3" fill="rgba(20,40,30,.7)" stroke="#1e5f3a" stroke-width="1"/>
+          <text x="615" y="107" text-anchor="middle" font-size="9" font-family="monospace" fill="#2a7a4a" letter-spacing=".05em">SWITCH B</text>
+          <text x="615" y="120" text-anchor="middle" font-size="8" font-family="monospace" fill="#1e5f3a">L2 fwd</text>
+          <line x1="451" y1="68" x2="590" y2="86" stroke="#1e5f3a" stroke-width="0.5"/>
+          <line x1="536" y1="68" x2="605" y2="86" stroke="#1e5f3a" stroke-width="0.5"/>
+          <line x1="390" y1="130" x2="575" y2="111" stroke="#1e5f3a" stroke-width="0.5" opacity=".4" stroke-dasharray="3 3"/>
+          <g id="sim-anim"></g>
+        </svg>
+      </div>
+      <div class="bp-log" id="sim-log"><span class="dim">// packet log —</span></div>
+    </div>
+
+    <!-- ADDRESSES -->
+    <div class="bp-panel" id="bp-addresses">
+      <div class="bp-rule"><em>Three broadcast address types.</em> Only directed broadcast is theoretically routable — and even that is disabled by default on all modern routers (RFC 2644, 1999).</div>
+      <table class="bp-table">
+        <thead>
+          <tr><th>Type</th><th>Address</th><th>Scope</th><th>Router forwards?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Limited broadcast</td>
+            <td style="font-family:monospace;color:#63b3f5;">255.255.255.255</td>
+            <td>Current subnet only</td>
+            <td><span class="bp-tag tag-red">NEVER</span></td>
+          </tr>
+          <tr>
+            <td>Directed broadcast</td>
+            <td style="font-family:monospace;color:#63b3f5;">192.168.1.<span style="color:#f0a830">255</span></td>
+            <td>Named subnet</td>
+            <td><span class="bp-tag tag-amber">DISABLED (RFC 2644)</span></td>
+          </tr>
+          <tr>
+            <td>Network broadcast <span style="color:#4a7aaa;font-size:10px;">(legacy)</span></td>
+            <td style="font-family:monospace;color:#63b3f5;">192.168.1.<span style="color:#4a7aaa">0</span></td>
+            <td>Subnet (old BSD)</td>
+            <td><span class="bp-tag tag-red">NEVER</span></td>
+          </tr>
+          <tr>
+            <td>Multicast <span style="color:#4a7aaa;font-size:10px;">(not broadcast)</span></td>
+            <td style="font-family:monospace;color:#63b3f5;">224.0.0.0 – 239.255.255.255</td>
+            <td>Group-scoped</td>
+            <td><span class="bp-tag tag-green">YES — with IGMP</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:16px;" class="bp-rule">
+        <em>Smurf attack (1997):</em> attacker sends ICMP to a directed broadcast address, spoofing the victim's IP as source. Every host on that subnet replies to the victim — instant DDoS amplification by 200–300×. RFC 2644 closed this by requiring routers to drop directed broadcasts by default.
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="bp-panel" id="bp-quiz">
+      <div id="quiz-wrap"></div>
+    </div>
+  </div>
+
+  <div class="footer">udp_broadcast_subnet_explainer · MAVLink networking series</div>
+</div>
+
+<script>
+function bpTab(id, el) {
+  document.querySelectorAll('.bp-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bp-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('bp-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'quiz') renderQuiz();
+}
+
+function ovAnim() {
+  const pkt = document.getElementById('ov-pkt');
+  const blk = document.getElementById('ov-block');
+  pkt.style.opacity = '1'; blk.style.opacity = '0';
+  setTimeout(() => { blk.style.opacity = '1'; }, 1200);
+  setTimeout(() => { pkt.style.opacity = '0'; blk.style.opacity = '0'; }, 3000);
+}
+
+const hpos = {
+  A1:{x:54,y:51,s:'A'}, A2:{x:136,y:51,s:'A'}, A3:{x:54,y:103,s:'A'},
+  B1:{x:451,y:51,s:'B'}, B2:{x:536,y:51,s:'B'}
+};
+const swPos = {A:{x:205,y:111}, B:{x:615,y:111}};
+const rtPos = {x:340,y:130};
+
+function mkLine(svg,x1,y1,x2,y2,col,dash){
+  const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+  l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+  l.setAttribute('stroke',col);l.setAttribute('stroke-width','2');
+  l.setAttribute('marker-end','url(#sim-arr)');
+  if(dash){l.setAttribute('stroke-dasharray','6 4');l.classList.add('marching');}
+  svg.appendChild(l); return l;
+}
+function mkPulse(svg,cx,cy,col){
+  const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r','8');
+  c.setAttribute('fill','none');c.setAttribute('stroke',col);c.setAttribute('stroke-width','1.5');
+  c.classList.add('pop-ring'); svg.appendChild(c); return c;
+}
+function mkBlock(svg,cx,cy){
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+  r.setAttribute('x',cx-30);r.setAttribute('y',cy-14);r.setAttribute('width','60');r.setAttribute('height','28');r.setAttribute('rx','3');
+  r.setAttribute('fill','rgba(224,85,85,.12)');r.setAttribute('stroke','#e05555');r.setAttribute('stroke-width','1');
+  const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.setAttribute('x',cx);t.setAttribute('y',cy+5);t.setAttribute('text-anchor','middle');
+  t.setAttribute('font-size','10');t.setAttribute('font-family','monospace');t.setAttribute('fill','#e05555');
+  t.textContent='BLOCKED'; g.appendChild(r);g.appendChild(t); svg.appendChild(g); return g;
+}
+
+function simLog(msg,cls){
+  const el=document.getElementById('sim-log');
+  if(el.querySelector('.dim'))el.innerHTML='';
+  el.innerHTML+=`<div class="${cls||''}">${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+
+async function simRun(){
+  const src=document.getElementById('sim-src').value;
+  const dst=document.getElementById('sim-dst').value;
+  const btn=document.getElementById('sim-send');
+  btn.disabled=true;
+  const anim=document.getElementById('sim-anim');
+  anim.innerHTML='';
+  const sp=hpos[src];
+  const isBcast=dst==='sbcast'||dst==='lbcast';
+  const dp=isBcast?null:hpos[dst];
+  const sameSub=!isBcast&&dp&&dp.s===sp.s;
+  const bAddr=dst==='lbcast'?'255.255.255.255':(sp.s==='A'?'192.168.1.255':'192.168.2.255');
+  const srcIp=(sp.s==='A'?'192.168.1.':'192.168.2.')+(src==='A1'||src==='B1'?10:src==='A2'||src==='B2'?20:30);
+  simLog(`<span class="inf">TX  ${srcIp} → ${isBcast?bAddr:dst}  proto=UDP</span>`);
+  const sw=swPos[sp.s];
+  mkLine(anim,sp.x,sp.y,sw.x,sw.y,'#4a90d9',true);
+  await delay(550);
+  if(!isBcast&&sameSub){
+    mkLine(anim,sw.x,sw.y,dp.x,dp.y,'#4a90d9',true);
+    await delay(600);
+    mkPulse(anim,dp.x,dp.y,'#4ecb8d');
+    simLog(`<span class="ok">✓   Delivered to ${dst} (same subnet — switch forwarded, no router needed)</span>`);
+  } else if(isBcast){
+    const peers=Object.entries(hpos).filter(([k,v])=>v.s===sp.s&&k!==src);
+    for(const [k,v] of peers) mkLine(anim,sw.x,sw.y,v.x,v.y,'#4a90d9',true);
+    await delay(600);
+    for(const [k,v] of peers) mkPulse(anim,v.x,v.y,'#4ecb8d');
+    simLog(`<span class="ok">✓   Broadcast received by all hosts in Subnet ${sp.s}</span>`);
+    mkLine(anim,sw.x,sw.y,rtPos.x,rtPos.y,'#f0a830',true);
+    await delay(650);
+    mkBlock(anim,rtPos.x,rtPos.y-48);
+    simLog(`<span class="err">✕   Router dropped packet — ${bAddr} is never forwarded (RFC 919 / 2644)</span>`);
+    simLog(`<span class="dim">//  Subnet ${sp.s==='A'?'B':'A'} hosts never received it</span>`);
+  } else {
+    mkLine(anim,sw.x,sw.y,rtPos.x,rtPos.y,'#f0a830',true);
+    await delay(550);
+    const dsw=swPos[dp.s];
+    mkLine(anim,rtPos.x,rtPos.y,dsw.x,dsw.y,'#f0a830',true);
+    await delay(550);
+    mkLine(anim,dsw.x,dsw.y,dp.x,dp.y,'#4ecb8d',true);
+    await delay(550);
+    mkPulse(anim,dp.x,dp.y,'#4ecb8d');
+    simLog(`<span class="ok">✓   Unicast routed: ${src} → Router → ${dst} (L3 routing — works fine)</span>`);
+  }
+  setTimeout(()=>{ anim.innerHTML=''; btn.disabled=false; }, 3500);
+}
+
+const QS=[
+  {q:"A host sends UDP to 255.255.255.255. Which hosts receive it?",
+   opts:["All hosts on the internet","Only the default gateway","All hosts on the same subnet","All hosts on all directly connected subnets"],
+   c:2, ex:"<strong>255.255.255.255</strong> is the <em>limited broadcast</em> address. Routers never forward it — it is strictly local to the originating subnet. Only hosts sharing the same Layer 2 segment receive the frame."},
+  {q:"What happens when a router receives a packet destined for 192.168.1.255?",
+   opts:["Forwards it to subnet 192.168.1.0 normally","Drops it — directed broadcast is disabled by default (RFC 2644)","Converts it to unicast for each host","Floods it to all known subnets"],
+   c:1, ex:"RFC 2644 (1999) mandated that routers <strong>drop directed broadcast packets by default</strong>. This was introduced to prevent Smurf-style amplification attacks."},
+  {q:"DHCP uses broadcast on UDP port 67. How does DHCP work across subnets?",
+   opts:["DHCP uses TCP for cross-subnet discovery","Routers have a special DHCP broadcast exception","A relay agent (ip helper-address) converts the broadcast to unicast","DHCP uses multicast group 224.0.0.1"],
+   c:2, ex:"A <strong>DHCP relay agent</strong> — configured via <code>ip helper-address</code> — intercepts the local broadcast, rewraps it as a unicast UDP packet to the DHCP server's IP, and forwards it. No broadcast ever crosses the router."},
+  {q:"Why must broadcast use UDP rather than TCP?",
+   opts:["TCP is slower than UDP","TCP requires a connection handshake with a specific destination — impossible when recipients are unknown","UDP has a larger MTU","TCP is filtered by all routers"],
+   c:1, ex:"TCP is <strong>connection-oriented</strong> — the SYN/SYN-ACK/ACK handshake requires a specific destination IP address. When broadcasting, you don't know who will respond. UDP's connectionless model is the only viable transport for broadcast and multicast."}
+];
+
+let qi=0, answered=false;
+function renderQuiz(){
+  const c=document.getElementById('quiz-wrap');
+  if(qi>=QS.length){
+    c.innerHTML=`<div style="text-align:center;padding:2rem 0;">
+      <div style="font-size:20px;font-weight:500;color:var(--white);margin-bottom:8px;font-family:var(--mono);">// quiz complete</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:20px;">all ${QS.length} questions answered</div>
+      <button class="bp-btn primary" onclick="qi=0;renderQuiz()">Restart ↺</button>
+    </div>`;return;
+  }
+  const q=QS[qi]; answered=false;
+  c.innerHTML=`<div class="quiz-n">question ${qi+1} / ${QS.length}</div>
+    <div class="quiz-q">${q.q}</div>
+    <div class="quiz-opts">${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="checkA(${i})">${o}</button>`).join('')}</div>
+    <div id="qfb" class="quiz-fb"></div>
+    <button class="bp-btn" id="qnext" style="display:none;margin-top:10px" onclick="qi++;renderQuiz()">Next →</button>`;
+}
+function checkA(i){
+  if(answered)return; answered=true;
+  const q=QS[qi];
+  document.querySelectorAll('.quiz-opt').forEach((o,j)=>{
+    o.disabled=true;
+    if(j===q.c)o.classList.add('correct');
+    else if(j===i)o.classList.add('wrong');
+  });
+  const fb=document.getElementById('qfb');
+  fb.style.display='block';
+  if(i===q.c){fb.className='quiz-fb ok';fb.innerHTML='+ CORRECT — '+q.ex;}
+  else{fb.className='quiz-fb err';fb.innerHTML='- INCORRECT — '+q.ex;}
+  document.getElementById('qnext').style.display='inline-block';
+}
+</script>
+</body>
+</html>

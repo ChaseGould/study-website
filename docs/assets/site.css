@@ -141,6 +141,23 @@ p {
   max-width: 70ch;
 }
 
+.artifact-embed {
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.artifact-embed iframe {
+  display: block;
+  width: 100%;
+  min-height: 900px;
+  border: 0;
+  background: #fff;
+}
+
 @media (max-width: 800px) {
   .layout {
     grid-template-columns: 1fr;
