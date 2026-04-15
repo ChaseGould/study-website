@@ -2,7 +2,7 @@
 
 Keep the implementation simple. Use plain HTML, CSS, JavaScript, and a Python build script only.
 
-## Task 1: Create the static site shell
+## Task 1: Create the static site shell ✅ Completed
 Build the base site structure with:
 - homepage
 - top bar
