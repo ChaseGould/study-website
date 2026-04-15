@@ -10,6 +10,11 @@
     "content": "C++ Memory Basics Pointers store addresses, while references act like stable aliases to existing values. Quick rules Prefer stack allocation when ownership is simple. Use std::unique_ptr when one object clearly owns another. Avoid raw new in everyday application code. Why this matters Memory bugs are often harder to debug than syntax errors because the program may fail far away from the original mistake."
   },
   {
+    "title": "Screen cheatsheet",
+    "url": "linux/screen-cheatsheet.html",
+    "content": "Screen cheatsheet Also to create a screen with a name: screen -S <name of screen>"
+  },
+  {
     "title": "Qos Overview",
     "url": "ros2/qos/Overview.html",
     "content": "Qos Overview The main QoS policies you\u2019ll see are: History: how many samples to store (keep_last or keep_all) Depth: queue size when using keep_last Reliability: reliable or best_effort Durability: whether late-joining subscribers can get old data (volatile or transient_local) Deadline / lifespan / liveliness: timing-related behavior and node aliveness checks"
