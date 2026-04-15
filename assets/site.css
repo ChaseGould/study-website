@@ -72,10 +72,50 @@ body {
 
 .sidebar ul {
   list-style: none;
-  padding: 0;
+  padding-left: 0;
   margin: 0;
   display: grid;
   gap: 0.6rem;
+}
+
+.sidebar li {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sidebar details {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sidebar summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sidebar summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar summary::before {
+  content: "\25BE";
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.sidebar details:not([open]) > summary::before {
+  content: "\25B8";
+}
+
+.sidebar li > ul,
+.sidebar details > ul {
+  padding-left: 1rem;
+  border-left: 1px solid var(--border);
 }
 
 .content {

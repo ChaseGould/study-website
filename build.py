@@ -211,7 +211,7 @@ def relative_href(from_url: str, to_url: str) -> str:
     return posixpath.relpath(to_url, base_dir)
 
 
-def render_nav(node: Dict[str, dict], current_url: str) -> str:
+def render_nav(node: Dict[str, dict], current_url: str, current_path: str = "") -> str:
     items: List[str] = []
 
     for page in sorted(node["_pages"], key=lambda p: p.title.lower()):
@@ -220,8 +220,15 @@ def render_nav(node: Dict[str, dict], current_url: str) -> str:
 
     for section, child in sorted(node["_children"].items()):
         label = slug_to_title(section)
-        subsection = render_nav(child, current_url)
-        items.append(f"<li><span>{escape(label)}</span>{subsection}</li>")
+        section_path = f"{current_path}/{section}" if current_path else section
+        subsection = render_nav(child, current_url, section_path)
+        is_open = current_url.startswith(f"{section_path}/") or current_url == "index.html"
+        open_attr = " open" if is_open else ""
+        items.append(
+            f'<li><details class="nav-section"{open_attr}>'
+            f"<summary>{escape(label)}</summary>"
+            f"{subsection}</details></li>"
+        )
 
     if not items:
         return ""
