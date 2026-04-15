@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>qos-reliability | Study Site</title>
+  <link rel="stylesheet" href="../../../assets/site.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="../../../index.html">Study Site</a></div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Sidebar">
+      <h2>Sections</h2>
+      <ul><li><details class="nav-section" open><summary>Ros2</summary><ul><li><details class="nav-section" open><summary>Qos</summary><ul><li><a href="../Overview.html">Qos Overview</a></li><li><details class="nav-section" open><summary>Qos Specificis</summary><ul><li><a href="qos-compatability-image.html">qos-compatability-image</a></li><li><a href="qos-reliability.html">qos-reliability</a></li></ul></details></li></ul></details></li></ul></details></li></ul>
+    </aside>
+    <main class="content" id="main-content">
+      <nav class="breadcrumbs" aria-label="Breadcrumbs"><a href="../../../index.html">Home</a><span>/</span><span>Ros2</span><span>/</span><span>Qos</span><span>/</span><span>Qos Specificis</span><span>/</span><span aria-current="page">qos-reliability</span></nav>
+      <h1>qos-reliability</h1>
+<h2>Quick intuition</h2>
+<p>Reliable = “Do not lose messages.”</p>
+<p>Best effort = “Do not slow down for lost messages.”</p>
+<h2>Reliable</h2>
+<p>With reliable QoS, the middleware tries hard to make sure messages arrive. That means the publisher expects acknowledgements from matching subscribers and may retransmit data that was not received properly. ROS 2 docs describe this as the mode that can behave more like TCP.</p>
+<p>What that means in practice:</p>
+<p>Better when every message matters</p>
+<p>More network overhead</p>
+<p>Can increase latency under bad network conditions</p>
+<p>Can cause backpressure or slower progress if the network is lossy or subscribers cannot keep up</p>
+<p>Useful for commands, state changes, important events, configuration, mission-critical data</p>
+<p>A good mental model is:</p>
+<p>“I would rather wait a bit and get the message than lose it.”</p>
+<p>Examples:</p>
+<p>Robot mode change</p>
+<p>Goal commands</p>
+<p>Safety-related status</p>
+<p>A map update that should not be silently dropped</p>
+<h2>Best effort</h2>
+<p>With best effort QoS, the middleware sends messages without guaranteeing delivery. Lost packets are just lost. ROS 2 docs compare this to a UDP-like mode.</p>
+<p>What that means in practice:</p>
+<p>Lower overhead</p>
+<p>Lower latency</p>
+<p>Better for high-rate streams where old data quickly becomes useless</p>
+<p>More tolerant of lossy wireless links</p>
+<p>Good when getting the latest sample matters more than getting every sample</p>
+<p>A good mental model is:</p>
+<p>“Just give me the newest data you can; don’t waste time retrying old data.”</p>
+<p>Examples:</p>
+<p>Camera images</p>
+<p>LiDAR scans</p>
+<p>IMU data</p>
+<p>Fast telemetry where missing one frame is acceptable</p>
+<p>That is why ROS 2’s predefined SensorDataQoS uses best effort, keep_last, and a small depth by default.</p>
+<p>Reliable vs best effort: the tradeoff</p>
+<p>The core tradeoff is:</p>
+<p>Reliable: correctness/completeness first</p>
+<p>Best effort: timeliness/freshness first</p>
+<h2>Compatability</h2>
+<p>QoS compatibility matters a lot in ROS 2. A publisher and subscriber will only connect if their policies are compatible. For reliability, a reliable subscriber cannot be satisfied by a best-effort publisher, while a best-effort subscriber can generally connect to a reliable publisher because the publisher is offering at least that level of service.</p>
+<p>So in practice:</p>
+<p>Publisher reliable + subscriber reliable → connects</p>
+<p>Publisher reliable + subscriber best effort → usually connects</p>
+<p>Publisher best effort + subscriber best effort → connects</p>
+<p>Publisher best effort + subscriber reliable → not compatible</p>
+<p>This is a very common reason for “why isn’t my subscriber receiving messages?”</p>
+<h2>How to choose</h2>
+<p>A good rule of thumb:</p>
+<h3>Use reliable when:</h3>
+<p>Every message matters</p>
+<p>Topic rate is moderate or low</p>
+<p>Retransmission cost is acceptable</p>
+<p>You are sending commands, decisions, or important state</p>
+<h3>Use best effort when:</h3>
+<p>Topic rate is high</p>
+<p>Data gets stale quickly</p>
+<p>Some loss is acceptable</p>
+<p>You are on Wi-Fi, lossy links, or streaming sensor data</p>
+    </main>
+  </div>
+</body>
+</html>
