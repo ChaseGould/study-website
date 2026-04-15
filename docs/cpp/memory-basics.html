@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>C++ Memory Basics | Study Site</title>
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="../index.html">Study Site</a></div>
+    <div class="search" data-search-root>
+      <label class="search-label" for="site-search">Search</label>
+      <input
+        id="site-search"
+        class="search-input"
+        type="search"
+        placeholder="Search notes"
+        autocomplete="off"
+        data-search-input
+      />
+      <div class="search-results" data-search-results hidden></div>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Sidebar">
+      <h2>Sections</h2>
+      <ul><li><details class="nav-section"><summary>Computer Networking</summary><ul><li><details class="nav-section"><summary>Udp</summary><ul><li><a href="../computer-networking/udp/udp-broadcast.html">UDP Broadcast</a></li></ul></details></li></ul></details></li><li><details class="nav-section" open><summary>Cpp</summary><ul><li><a href="memory-basics.html">C++ Memory Basics</a></li></ul></details></li><li><details class="nav-section"><summary>Ros2</summary><ul><li><details class="nav-section"><summary>Qos</summary><ul><li><a href="../ros2/qos/Overview.html">Qos Overview</a></li><li><details class="nav-section"><summary>Qos Specificis</summary><ul><li><a href="../ros2/qos/qos-specificis/qos-compatability-image.html">qos-compatability-image</a></li><li><a href="../ros2/qos/qos-specificis/qos-reliability.html">qos-reliability</a></li></ul></details></li></ul></details></li></ul></details></li><li><details class="nav-section"><summary>Spanish</summary><ul><li><a href="../spanish/greetings.html">Spanish Greetings</a></li></ul></details></li></ul>
+    </aside>
+    <main class="content" id="main-content">
+      <nav class="breadcrumbs" aria-label="Breadcrumbs"><a href="../index.html">Home</a><span>/</span><span>Cpp</span><span>/</span><span aria-current="page">C++ Memory Basics</span></nav>
+      <h1>C++ Memory Basics</h1>
+<p>Pointers store addresses, while references act like stable aliases to existing values.</p>
+<h2>Quick rules</h2>
+<ul>
+<li>Prefer stack allocation when ownership is simple.</li>
+<li>Use `std::unique_ptr` when one object clearly owns another.</li>
+<li>Avoid raw `new` in everyday application code.</li>
+</ul>
+<h2>Why this matters</h2>
+<p>Memory bugs are often harder to debug than syntax errors because the program may fail far away from the original mistake.</p>
+    </main>
+  </div>
+  <script src="../assets/search-data.js" defer></script>
+  <script src="../assets/search.js" defer></script>
+</body>
+</html>

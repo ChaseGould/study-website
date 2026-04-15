@@ -22,6 +22,7 @@ class Page:
     output_path: Path
     breadcrumbs: List[Tuple[str, Optional[str]]]
     body_html: str
+    search_text: str
     kind: str
 
 
@@ -155,6 +156,18 @@ def markdown_to_html(markdown: str) -> str:
     return "\n".join(html_parts)
 
 
+def markdown_to_search_text(markdown: str) -> str:
+    text = markdown
+    text = ARTIFACT_SHORTCODE_RE.sub("", text)
+    text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", r"\1", text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1", text)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^[-*]\s+", "", text, flags=re.MULTILINE)
+    text = text.replace("`", "")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def build_breadcrumbs(parts: List[str], url: str, title: str) -> List[Tuple[str, Optional[str]]]:
     crumbs: List[Tuple[str, Optional[str]]] = [("Home", "index.html")]
     if not parts:
@@ -192,6 +205,7 @@ def collect_pages() -> List[Page]:
         parts = list(relative.parent.parts)
         breadcrumbs = build_breadcrumbs(parts, url, title)
         body_html = markdown_to_html(markdown_body)
+        search_text = markdown_to_search_text(markdown_body)
         pages.append(
             Page(
                 title=title,
@@ -199,6 +213,7 @@ def collect_pages() -> List[Page]:
                 output_path=DOCS_DIR / output_relative,
                 breadcrumbs=breadcrumbs,
                 body_html=body_html,
+                search_text=search_text,
                 kind="note",
             )
         )
@@ -231,6 +246,7 @@ def collect_pages() -> List[Page]:
                 output_path=DOCS_DIR / output_relative,
                 breadcrumbs=breadcrumbs,
                 body_html=body_html,
+                search_text="",
                 kind="artifact",
             )
         )
@@ -294,6 +310,8 @@ def render_breadcrumbs(crumbs: List[Tuple[str, Optional[str]]], current_url: str
 
 def page_shell(title: str, current_url: str, nav_html: str, breadcrumbs_html: str, body_html: str) -> str:
     stylesheet_href = relative_href(current_url, "assets/site.css")
+    script_href = relative_href(current_url, "assets/search.js")
+    search_data_href = relative_href(current_url, "assets/search-data.js")
     home_href = relative_href(current_url, "index.html")
     return f"""<!DOCTYPE html>
 <html lang=\"en\">
@@ -306,6 +324,18 @@ def page_shell(title: str, current_url: str, nav_html: str, breadcrumbs_html: st
 <body>
   <header class=\"topbar\">
     <div class=\"brand\"><a href=\"{escape(home_href)}\">Study Site</a></div>
+    <div class=\"search\" data-search-root>
+      <label class=\"search-label\" for=\"site-search\">Search</label>
+      <input
+        id=\"site-search\"
+        class=\"search-input\"
+        type=\"search\"
+        placeholder=\"Search notes\"
+        autocomplete=\"off\"
+        data-search-input
+      />
+      <div class=\"search-results\" data-search-results hidden></div>
+    </div>
   </header>
   <div class=\"layout\">
     <aside class=\"sidebar\" aria-label=\"Sidebar\">
@@ -317,6 +347,8 @@ def page_shell(title: str, current_url: str, nav_html: str, breadcrumbs_html: st
       {body_html}
     </main>
   </div>
+  <script src=\"{escape(search_data_href)}\" defer></script>
+  <script src=\"{escape(script_href)}\" defer></script>
 </body>
 </html>
 """
@@ -354,6 +386,21 @@ def copy_content_assets() -> None:
         shutil.copy2(path, destination)
 
 
+def build_search_index(pages: List[Page]) -> None:
+    entries = [
+        {"title": page.title, "url": page.url, "content": page.search_text}
+        for page in pages
+        if page.kind == "note"
+    ]
+    json_path = DOCS_DIR / "search-index.json"
+    json_path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
+
+    js_path = DOCS_DIR / "assets" / "search-data.js"
+    js_path.parent.mkdir(parents=True, exist_ok=True)
+    js_payload = json.dumps(entries, ensure_ascii=False)
+    js_path.write_text(f"window.__SEARCH_INDEX__ = {js_payload};\n", encoding="utf-8")
+
+
 def build() -> None:
     pages = collect_pages()
     nav_tree = build_tree(pages)
@@ -364,6 +411,7 @@ def build() -> None:
 
     copy_assets()
     copy_content_assets()
+    build_search_index(pages)
 
     home_nav_html = render_nav(nav_tree, "index.html")
     (DOCS_DIR / "index.html").write_text(render_home(home_nav_html), encoding="utf-8")

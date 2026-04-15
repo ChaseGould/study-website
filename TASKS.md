@@ -30,7 +30,7 @@ Assume GitHub Pages will publish from `main` → `/docs`.
 
 ---
 
-## Task 3: Add simple search and sample content
+## Task 3: Add simple search and sample content ✅ Completed
 Add a simple client-side search using generated static data.
 
 Search should cover:
