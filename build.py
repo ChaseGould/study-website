@@ -51,6 +51,22 @@ def parse_frontmatter(text: str) -> Tuple[Dict[str, str], str]:
     return metadata, content
 
 
+def render_inline_markdown(text: str) -> str:
+    parts: List[str] = []
+    last_index = 0
+    pattern = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
+
+    for match in pattern.finditer(text):
+        parts.append(escape(text[last_index : match.start()]))
+        alt_text = escape(match.group(1).strip())
+        src = escape(match.group(2).strip(), quote=True)
+        parts.append(f'<img src="{src}" alt="{alt_text}" loading="lazy" />')
+        last_index = match.end()
+
+    parts.append(escape(text[last_index:]))
+    return "".join(parts)
+
+
 def markdown_to_html(markdown: str) -> str:
     html_parts: List[str] = []
     lines = markdown.splitlines()
@@ -89,7 +105,7 @@ def markdown_to_html(markdown: str) -> str:
         if heading_match:
             close_list()
             level = len(heading_match.group(1))
-            content = escape(heading_match.group(2))
+            content = render_inline_markdown(heading_match.group(2))
             html_parts.append(f"<h{level}>{content}</h{level}>")
             continue
 
@@ -98,11 +114,20 @@ def markdown_to_html(markdown: str) -> str:
             if not in_list:
                 html_parts.append("<ul>")
                 in_list = True
-            html_parts.append(f"<li>{escape(list_match.group(1))}</li>")
+            html_parts.append(f"<li>{render_inline_markdown(list_match.group(1))}</li>")
             continue
 
         close_list()
-        html_parts.append(f"<p>{escape(stripped)}</p>")
+        image_only_match = re.match(r"^!\[([^\]]*)\]\(([^)]+)\)$", stripped)
+        if image_only_match:
+            alt_text = escape(image_only_match.group(1).strip())
+            src = escape(image_only_match.group(2).strip(), quote=True)
+            html_parts.append(
+                f'<figure class="note-image"><img src="{src}" alt="{alt_text}" loading="lazy" /></figure>'
+            )
+            continue
+
+        html_parts.append(f"<p>{render_inline_markdown(stripped)}</p>")
 
     close_list()
     if in_code:
@@ -293,6 +318,23 @@ def copy_assets() -> None:
     shutil.copytree(ASSETS_DIR, dest, dirs_exist_ok=True)
 
 
+def copy_content_assets() -> None:
+    artifact_dirs = {path.parent for path in CONTENT_DIR.rglob("meta.json")}
+
+    for path in CONTENT_DIR.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() == ".md":
+            continue
+        if any(parent in artifact_dirs for parent in path.parents):
+            continue
+
+        relative = path.relative_to(CONTENT_DIR)
+        destination = DOCS_DIR / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, destination)
+
+
 def build() -> None:
     pages = collect_pages()
     nav_tree = build_tree(pages)
@@ -302,6 +344,7 @@ def build() -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     copy_assets()
+    copy_content_assets()
 
     home_nav_html = render_nav(nav_tree, "index.html")
     (DOCS_DIR / "index.html").write_text(render_home(home_nav_html), encoding="utf-8")
